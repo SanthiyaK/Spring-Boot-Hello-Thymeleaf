@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_BUILDKIT = "1"  // Enable BuildKit (can set to "0" to disable)
+        DOCKER_BUILDKIT = "1"  // Enable BuildKit
     }
     
     tools {
@@ -51,7 +51,6 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Disable BuildKit until buildx is installed
                     sh 'DOCKER_BUILDKIT=0 docker build -t santhiyakrishdevops/springboot-app:latest .'
                 }
             }
@@ -74,23 +73,15 @@ pipeline {
         }
 
         stage('Deploy to Kubernetes') {
-            environment {
-                KUBECONFIG_CRED = credentials('kubeconfig')
-            }
             steps {
-                script {
-                    // Write kubeconfig content to a file
-                    writeFile file: 'kubeconfig.yaml', text: KUBECONFIG_CRED
-
-                    // Use it for kubectl commands
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
                     sh '''
-                        export KUBECONFIG=kubeconfig.yaml
+                        export KUBECONFIG=$KUBECONFIG_FILE
                         kubectl apply -f deployment.yaml
                         kubectl apply -f service.yaml
                     '''
                 }
             }
         }
-
     }
 }
